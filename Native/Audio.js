@@ -9,43 +9,39 @@ Elm.Native.Audio.make = function(elm){
     var gain = ctx.createGain();
     gain.connect(ctx.destination);
 
-    var oscillators = {}
-
-    var oscillator = F2(function(detune, frequency){
-        var node1 = ctx.createOscillator();
-        node1.frequency.value = frequency;
-        node1.type = "sawtooth";
-        node1.detune.value = detune / 27;
-        node1.start();
-        node1.connect(gain);
-        if(oscillators[frequency] == undefined){
-            oscillators[frequency] = [ node1 ];
-        } else {
-            oscillators[frequency].push(node1);
+    var oscillators =
+        {1: {},
+         2: {}
         }
+
+    var oscillator = F3(function(index, detune, frequency){
+        var node = ctx.createOscillator();
+        node.frequency.value = frequency;
+        node.type = "sawtooth";
+        node.detune.value = detune / 27;
+        node.start();
+        node.connect(gain);
+        oscillators[index][frequency] = node;
         return frequency
     });
 
-    var destroyOscillator = function(frequency){
-        oscillators[frequency].forEach(function (oscillator) {
-            oscillator.stop();
-            oscillator.disconnect();
-        });
+    var destroyOscillator = F2(function(index, frequency){
+        var oscillator = oscillators[index][frequency];
+        oscillator.stop();
+        oscillator.disconnect();
         return frequency;
-    };
+    });
 
-    var connect = F2(function(sender, receiver){
-        if (receiver.ctor === "DestinationNode"){
-            sender._node.connect(ctx.destination);
-        } else {
-            sender._node.connect(receiver._node);
+    var setOscillatorDetune = F2(function(index, detune){
+        for(var freq in oscillators[index]){
+            oscillators[index][freq].detune.value = detune / 27;
         }
-        return true;
+        return detune
     });
 
     return elm.Native.Audio.values = {
         oscillator: oscillator,
-        connect: connect,
-        destroyOscillator: destroyOscillator
+        destroyOscillator: destroyOscillator,
+        setOscillatorDetune: setOscillatorDetune
     }
 }

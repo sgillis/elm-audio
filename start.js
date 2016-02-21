@@ -1,11 +1,13 @@
 var app = Elm.fullscreen(
-    Elm.Main, 
+    Elm.Main,
     { receivedModel:
       { audio:
         { oscillators:
-          [ { index: 1, notes: [], detune: 0 },
-            { index: 2, notes: [], detune: 0 }
-          ]
+          [ { index: 1, playingNotes: [], detune: 0 },
+            { index: 2, playingNotes: [], detune: 0 }
+          ],
+          notes:
+          []
         },
         detuneKnob:
         { angle: 0 }

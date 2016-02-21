@@ -12083,44 +12083,40 @@ Elm.Native.Audio.make = function(elm){
     var gain = ctx.createGain();
     gain.connect(ctx.destination);
 
-    var oscillators = {}
-
-    var oscillator = F2(function(detune, frequency){
-        var node1 = ctx.createOscillator();
-        node1.frequency.value = frequency;
-        node1.type = "sawtooth";
-        node1.detune.value = detune / 27;
-        node1.start();
-        node1.connect(gain);
-        if(oscillators[frequency] == undefined){
-            oscillators[frequency] = [ node1 ];
-        } else {
-            oscillators[frequency].push(node1);
+    var oscillators =
+        {1: {},
+         2: {}
         }
+
+    var oscillator = F3(function(index, detune, frequency){
+        var node = ctx.createOscillator();
+        node.frequency.value = frequency;
+        node.type = "sawtooth";
+        node.detune.value = detune / 27;
+        node.start();
+        node.connect(gain);
+        oscillators[index][frequency] = node;
         return frequency
     });
 
-    var destroyOscillator = function(frequency){
-        oscillators[frequency].forEach(function (oscillator) {
-            oscillator.stop();
-            oscillator.disconnect();
-        });
+    var destroyOscillator = F2(function(index, frequency){
+        var oscillator = oscillators[index][frequency];
+        oscillator.stop();
+        oscillator.disconnect();
         return frequency;
-    };
+    });
 
-    var connect = F2(function(sender, receiver){
-        if (receiver.ctor === "DestinationNode"){
-            sender._node.connect(ctx.destination);
-        } else {
-            sender._node.connect(receiver._node);
+    var setOscillatorDetune = F2(function(index, detune){
+        for(var freq in oscillators[index]){
+            oscillators[index][freq].detune.value = detune / 27;
         }
-        return true;
+        return detune
     });
 
     return elm.Native.Audio.values = {
         oscillator: oscillator,
-        connect: connect,
-        destroyOscillator: destroyOscillator
+        destroyOscillator: destroyOscillator,
+        setOscillatorDetune: setOscillatorDetune
     }
 }
 
@@ -12173,57 +12169,66 @@ Elm.Audio.make = function (_elm) {
    };
    var view = function (audio) {    return "";};
    var initOscillator = function (index) {
-      return {index: index,notes: _U.list([]),detune: 0};
+      return {index: index,detune: 0};
    };
-   var Oscillator = F3(function (a,b,c) {
-      return {index: a,notes: b,detune: c};
+   var Oscillator = F2(function (a,b) {
+      return {index: a,detune: b};
    });
-   var init = function (oscs) {
-      return {oscillators: A2($List.map,initOscillator,oscs)};
-   };
-   var Audio = function (a) {    return {oscillators: a};};
-   var destroyOscillator = function (freq) {
-      return $Native$Audio.destroyOscillator(freq);
-   };
-   var createOscillator = F2(function (osc,freq) {
-      return A2($Native$Audio.oscillator,osc.detune,freq);
+   var init = {oscillators: _U.list([]),notes: _U.list([])};
+   var Audio = F2(function (a,b) {
+      return {oscillators: a,notes: b};
    });
-   var updateOscillator = F2(function (input,playing) {
-      var oldNotes = $Set.fromList(playing.notes);
-      var notes = $Set.fromList(input.notes);
-      var create = $Set.toList(A2($Set.diff,notes,oldNotes));
-      var created = A2($List.map,createOscillator(input),create);
-      var destroy = $Set.toList(A2($Set.diff,oldNotes,notes));
-      var destroyed = A2($List.map,destroyOscillator,destroy);
+   var setOscillatorDetune = F2(function (osc,detune) {
+      return A2($Native$Audio.setOscillatorDetune,
+      osc.index,
+      detune);
+   });
+   var updateDetune = function (input) {
+      var _p2 = A2(setOscillatorDetune,input,input.detune);
       return input;
+   };
+   var destroyOscillator = F2(function (osc,freq) {
+      return A2($Native$Audio.destroyOscillator,osc.index,freq);
+   });
+   var createOscillator = F2(function (osc,freq) {
+      return A3($Native$Audio.oscillator,
+      osc.index,
+      osc.detune,
+      freq);
+   });
+   var updateNotes = F3(function (notes$,oldNotes$,oscillator) {
+      var oldNotes = $Set.fromList(oldNotes$);
+      var notes = $Set.fromList(notes$);
+      var create = $Set.toList(A2($Set.diff,notes,oldNotes));
+      var created = A2($List.map,createOscillator(oscillator),create);
+      var destroy = $Set.toList(A2($Set.diff,oldNotes,notes));
+      var destroyed = A2($List.map,
+      destroyOscillator(oscillator),
+      destroy);
+      return oscillator;
    });
    var update = F2(function (input,playing) {
-      var updateOsc$$ = F2(function (osc,playing) {
-         return _U.eq(osc.index,playing.index) ? A2(updateOscillator,
-         osc,
-         playing) : osc;
-      });
-      var updateOsc$ = F2(function (playingOscs,osc) {
-         return A2($List.map,updateOsc$$(osc),playingOscs);
-      });
-      var updateOsc = F2(function (oscs,playingOscs) {
-         return A2($List.map,updateOsc$(playingOscs),oscs);
-      });
-      var updatedOscillators = A2(updateOsc,
-      input.oscillators,
-      playing.oscillators);
-      return input;
+      var updatedOscillators = A2($List.map,
+      A2(updateNotes,input.notes,playing.notes),
+      input.oscillators);
+      var updatedOscillators$ = A2($List.map,
+      updateDetune,
+      updatedOscillators);
+      return _U.update(input,
+      {notes: input.notes,oscillators: updatedOscillators$});
    });
    return _elm.Audio.values = {_op: _op
                               ,createOscillator: createOscillator
                               ,destroyOscillator: destroyOscillator
+                              ,setOscillatorDetune: setOscillatorDetune
                               ,Audio: Audio
                               ,init: init
                               ,Oscillator: Oscillator
                               ,initOscillator: initOscillator
                               ,view: view
                               ,update: update
-                              ,updateOscillator: updateOscillator
+                              ,updateNotes: updateNotes
+                              ,updateDetune: updateDetune
                               ,keysToFreq: keysToFreq
                               ,charToFreq: charToFreq};
 };
@@ -12351,8 +12356,7 @@ Elm.Main.make = function (_elm) {
    $Result = Elm.Result.make(_elm),
    $Signal = Elm.Signal.make(_elm),
    $StartApp = Elm.StartApp.make(_elm),
-   $Task = Elm.Task.make(_elm),
-   $Time = Elm.Time.make(_elm);
+   $Task = Elm.Task.make(_elm);
    var _op = {};
    var frequencies = A2($Signal.map,
    $Audio.keysToFreq,
@@ -12362,31 +12366,26 @@ Elm.Main.make = function (_elm) {
       return _U.update(osc,{detune: detune});
    }),
    $Signal.constant(0),
-   A3($Signal.map2,
-   F2(function (freq,osc) {
-      return _U.update(osc,{notes: freq});
-   }),
-   frequencies,
-   $Signal.constant($Audio.initOscillator(1))));
+   $Signal.constant($Audio.initOscillator(1)));
    var receivedModel = Elm.Native.Port.make(_elm).inboundSignal("receivedModel",
    "Main.Model",
    function (v) {
       return typeof v === "object" && "audio" in v && "detuneKnob" in v ? {_: {}
-                                                                          ,audio: typeof v.audio === "object" && "oscillators" in v.audio ? {_: {}
-                                                                                                                                            ,oscillators: typeof v.audio.oscillators === "object" && v.audio.oscillators instanceof Array ? Elm.Native.List.make(_elm).fromArray(v.audio.oscillators.map(function (v) {
-                                                                                                                                               return typeof v === "object" && "index" in v && "notes" in v && "detune" in v ? {_: {}
-                                                                                                                                                                                                                               ,index: typeof v.index === "number" && isFinite(v.index) && Math.floor(v.index) === v.index ? v.index : _U.badPort("an integer",
-                                                                                                                                                                                                                               v.index)
-                                                                                                                                                                                                                               ,notes: typeof v.notes === "object" && v.notes instanceof Array ? Elm.Native.List.make(_elm).fromArray(v.notes.map(function (v) {
-                                                                                                                                                                                                                                  return typeof v === "number" && isFinite(v) && Math.floor(v) === v ? v : _U.badPort("an integer",
-                                                                                                                                                                                                                                  v);
-                                                                                                                                                                                                                               })) : _U.badPort("an array",
-                                                                                                                                                                                                                               v.notes)
-                                                                                                                                                                                                                               ,detune: typeof v.detune === "number" && isFinite(v.detune) && Math.floor(v.detune) === v.detune ? v.detune : _U.badPort("an integer",
-                                                                                                                                                                                                                               v.detune)} : _U.badPort("an object with fields `index`, `notes`, `detune`",
-                                                                                                                                               v);
-                                                                                                                                            })) : _U.badPort("an array",
-                                                                                                                                            v.audio.oscillators)} : _U.badPort("an object with fields `oscillators`",
+                                                                          ,audio: typeof v.audio === "object" && "oscillators" in v.audio && "notes" in v.audio ? {_: {}
+                                                                                                                                                                  ,oscillators: typeof v.audio.oscillators === "object" && v.audio.oscillators instanceof Array ? Elm.Native.List.make(_elm).fromArray(v.audio.oscillators.map(function (v) {
+                                                                                                                                                                     return typeof v === "object" && "index" in v && "detune" in v ? {_: {}
+                                                                                                                                                                                                                                     ,index: typeof v.index === "number" && isFinite(v.index) && Math.floor(v.index) === v.index ? v.index : _U.badPort("an integer",
+                                                                                                                                                                                                                                     v.index)
+                                                                                                                                                                                                                                     ,detune: typeof v.detune === "number" && isFinite(v.detune) && Math.floor(v.detune) === v.detune ? v.detune : _U.badPort("an integer",
+                                                                                                                                                                                                                                     v.detune)} : _U.badPort("an object with fields `index`, `detune`",
+                                                                                                                                                                     v);
+                                                                                                                                                                  })) : _U.badPort("an array",
+                                                                                                                                                                  v.audio.oscillators)
+                                                                                                                                                                  ,notes: typeof v.audio.notes === "object" && v.audio.notes instanceof Array ? Elm.Native.List.make(_elm).fromArray(v.audio.notes.map(function (v) {
+                                                                                                                                                                     return typeof v === "number" && isFinite(v) && Math.floor(v) === v ? v : _U.badPort("an integer",
+                                                                                                                                                                     v);
+                                                                                                                                                                  })) : _U.badPort("an array",
+                                                                                                                                                                  v.audio.notes)} : _U.badPort("an object with fields `oscillators`, `notes`",
                                                                           v.audio)
                                                                           ,detuneKnob: typeof v.detuneKnob === "object" && "angle" in v.detuneKnob ? {_: {}
                                                                                                                                                      ,angle: typeof v.detuneKnob.angle === "number" && isFinite(v.detuneKnob.angle) && Math.floor(v.detuneKnob.angle) === v.detuneKnob.angle ? v.detuneKnob.angle : _U.badPort("an integer",
@@ -12398,21 +12397,14 @@ Elm.Main.make = function (_elm) {
    F2(function (detune,osc) {
       return _U.update(osc,{detune: detune});
    }),
-   $Signal.dropRepeats(A2($Signal.sampleOn,
-   $Time.every(300 * $Time.millisecond),
-   A2($Signal.map,
+   $Signal.dropRepeats(A2($Signal.map,
    function (_p0) {
       return function (_) {
          return _.angle;
       }(function (_) {    return _.detuneKnob;}(_p0));
    },
-   receivedModel))),
-   A3($Signal.map2,
-   F2(function (freq,osc) {
-      return _U.update(osc,{notes: freq});
-   }),
-   frequencies,
-   $Signal.constant($Audio.initOscillator(2))));
+   receivedModel)),
+   $Signal.constant($Audio.initOscillator(2)));
    var audioInput = A3($Signal.map2,
    F2(function (osc,audio) {
       return _U.update(audio,
@@ -12425,7 +12417,12 @@ Elm.Main.make = function (_elm) {
       {oscillators: A2($List._op["::"],osc,audio.oscillators)});
    }),
    oscillator1,
-   $Signal.constant($Audio.init(_U.list([1,2])))));
+   A3($Signal.map2,
+   F2(function (freq,osc) {
+      return _U.update(osc,{notes: freq});
+   }),
+   frequencies,
+   $Signal.constant($Audio.init))));
    var update = F2(function (action,model) {
       var _p1 = action;
       switch (_p1.ctor)
@@ -12444,7 +12441,7 @@ Elm.Main.make = function (_elm) {
                   ,_1: $Effects.none};}
    });
    var init = {ctor: "_Tuple2"
-              ,_0: {audio: $Audio.init(_U.list([1,2])),detuneKnob: $Knob.init}
+              ,_0: {audio: $Audio.init,detuneKnob: $Knob.init}
               ,_1: $Effects.none};
    var DetuneKnobAction = function (a) {
       return {ctor: "DetuneKnobAction",_0: a};
@@ -12469,12 +12466,11 @@ Elm.Main.make = function (_elm) {
    var sendModel = Elm.Native.Port.make(_elm).outboundSignal("sendModel",
    function (v) {
       return {audio: {oscillators: Elm.Native.List.make(_elm).toArray(v.audio.oscillators).map(function (v) {
-                return {index: v.index
-                       ,notes: Elm.Native.List.make(_elm).toArray(v.notes).map(function (v) {
-                          return v;
-                       })
-                       ,detune: v.detune};
-             })}
+                        return {index: v.index,detune: v.detune};
+                     })
+                     ,notes: Elm.Native.List.make(_elm).toArray(v.audio.notes).map(function (v) {
+                        return v;
+                     })}
              ,detuneKnob: {angle: v.detuneKnob.angle}};
    },
    model);

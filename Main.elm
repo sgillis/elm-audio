@@ -8,7 +8,6 @@ import Knob
 import Signal exposing (Signal)
 import StartApp
 import Task
-import Time
 
 
 type alias Model =
@@ -25,7 +24,7 @@ type Action
 
 init : ( Model, Effects Action )
 init =
-  ( { audio = Audio.init [ 1, 2 ]
+  ( { audio = Audio.init
     , detuneKnob = Knob.init
     }
   , Effects.none
@@ -74,7 +73,8 @@ app =
     { init = init
     , update = update
     , view = view
-    , inputs = [ Signal.map AudioUpdate audioInput ]
+    , inputs =
+        [ Signal.map AudioUpdate audioInput ]
     }
 
 
@@ -105,7 +105,10 @@ port sendModel =
 
 audioInput : Signal Audio
 audioInput =
-  (Signal.constant <| Audio.init [ 1, 2 ])
+  (Signal.constant <| Audio.init)
+    |> Signal.map2
+        (\freq osc -> { osc | notes = freq })
+        frequencies
     |> Signal.map2
         (\osc audio -> { audio | oscillators = osc :: audio.oscillators })
         oscillator1
@@ -118,9 +121,6 @@ oscillator1 : Signal Oscillator
 oscillator1 =
   (Signal.constant <| Audio.initOscillator 1)
     |> Signal.map2
-        (\freq osc -> { osc | notes = freq })
-        frequencies
-    |> Signal.map2
         (\detune osc -> { osc | detune = detune })
         (Signal.constant 0)
 
@@ -129,14 +129,9 @@ oscillator2 : Signal Oscillator
 oscillator2 =
   (Signal.constant <| Audio.initOscillator 2)
     |> Signal.map2
-        (\freq osc -> { osc | notes = freq })
-        frequencies
-    |> Signal.map2
         (\detune osc -> { osc | detune = detune })
         (Signal.dropRepeats
-          <| Signal.sampleOn
-              (Time.every <| 300 * Time.millisecond)
-              (Signal.map (.angle << .detuneKnob) receivedModel)
+          (Signal.map (.angle << .detuneKnob) receivedModel)
         )
 
 

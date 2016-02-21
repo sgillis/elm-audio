@@ -3,31 +3,38 @@ module Audio (..) where
 import Char exposing (..)
 import Native.Audio
 import Set
-import String
 
 
 createOscillator : Oscillator -> Int -> Int
 createOscillator osc freq =
-  Native.Audio.oscillator osc.detune freq
+  Native.Audio.oscillator osc.index osc.detune freq
 
 
-destroyOscillator : Int -> Int
-destroyOscillator freq =
-  Native.Audio.destroyOscillator freq
+destroyOscillator : Oscillator -> Int -> Int
+destroyOscillator osc freq =
+  Native.Audio.destroyOscillator osc.index freq
+
+
+setOscillatorDetune : Oscillator -> Int -> Int
+setOscillatorDetune osc detune =
+  Native.Audio.setOscillatorDetune osc.index detune
 
 
 type alias Audio =
-  { oscillators : List Oscillator }
+  { oscillators : List Oscillator
+  , notes : List Int
+  }
 
 
-init : List Int -> Audio
-init oscs =
-  { oscillators = List.map initOscillator oscs }
+init : Audio
+init =
+  { oscillators = []
+  , notes = []
+  }
 
 
 type alias Oscillator =
   { index : Int
-  , notes : List Int
   , detune : Int
   }
 
@@ -35,7 +42,6 @@ type alias Oscillator =
 initOscillator : Int -> Oscillator
 initOscillator index =
   { index = index
-  , notes = []
   , detune = 0
   }
 
@@ -48,32 +54,26 @@ view audio =
 update : Audio -> Audio -> Audio
 update input playing =
   let
-    updateOsc'' osc playing =
-      if osc.index == playing.index then
-        updateOscillator osc playing
-      else
-        osc
-
-    updateOsc' playingOscs osc =
-      List.map (updateOsc'' osc) playingOscs
-
-    updateOsc oscs playingOscs =
-      List.map (updateOsc' playingOscs) oscs
-
     updatedOscillators =
-      updateOsc input.oscillators playing.oscillators
+      List.map (updateNotes input.notes playing.notes) input.oscillators
+
+    updatedOscillators' =
+      List.map updateDetune updatedOscillators
   in
-    input
+    { input
+      | notes = input.notes
+      , oscillators = updatedOscillators'
+    }
 
 
-updateOscillator : Oscillator -> Oscillator -> Oscillator
-updateOscillator input playing =
+updateNotes : List Int -> List Int -> Oscillator -> Oscillator
+updateNotes notes' oldNotes' oscillator =
   let
     notes =
-      Set.fromList input.notes
+      Set.fromList notes'
 
     oldNotes =
-      Set.fromList playing.notes
+      Set.fromList oldNotes'
 
     create =
       Set.toList <| Set.diff notes oldNotes
@@ -82,10 +82,19 @@ updateOscillator input playing =
       Set.toList <| Set.diff oldNotes notes
 
     created =
-      List.map (createOscillator input) create
+      List.map (createOscillator oscillator) create
 
     destroyed =
-      List.map destroyOscillator destroy
+      List.map (destroyOscillator oscillator) destroy
+  in
+    oscillator
+
+
+updateDetune : Oscillator -> Oscillator
+updateDetune input =
+  let
+    _ =
+      setOscillatorDetune input input.detune
   in
     input
 
