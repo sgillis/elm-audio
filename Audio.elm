@@ -1,23 +1,26 @@
 module Audio (..) where
 
-import Char exposing (..)
+import Effects exposing (Effects)
 import Native.Audio
 import Set
 
 
-createOscillator : Oscillator -> Int -> Int
+createOscillator : Oscillator -> Int -> Effects ()
 createOscillator osc freq =
   Native.Audio.oscillator osc.index osc.detune freq
+    |> Effects.task
 
 
-destroyOscillator : Oscillator -> Int -> Int
+destroyOscillator : Oscillator -> Int -> Effects ()
 destroyOscillator osc freq =
   Native.Audio.destroyOscillator osc.index freq
+    |> Effects.task
 
 
-setOscillatorDetune : Oscillator -> Int -> Int
+setOscillatorDetune : Oscillator -> Int -> Effects ()
 setOscillatorDetune osc detune =
   Native.Audio.setOscillatorDetune osc.index detune
+    |> Effects.task
 
 
 type alias Audio =
@@ -46,27 +49,26 @@ initOscillator index =
   }
 
 
-view : Audio -> String
-view audio =
-  ""
-
-
-update : Audio -> Audio -> Audio
+update : Audio -> Audio -> ( Audio, Effects () )
 update input playing =
   let
-    updatedOscillators =
+    ( updatedOscillators, fx ) =
       List.map (updateNotes input.notes playing.notes) input.oscillators
+        |> List.unzip
 
-    updatedOscillators' =
+    ( updatedOscillators', fx' ) =
       List.map updateDetune updatedOscillators
+        |> List.unzip
   in
-    { input
-      | notes = input.notes
-      , oscillators = updatedOscillators'
-    }
+    ( { input
+        | notes = input.notes
+        , oscillators = updatedOscillators'
+      }
+    , Effects.batch <| List.concat [ fx, fx' ]
+    )
 
 
-updateNotes : List Int -> List Int -> Oscillator -> Oscillator
+updateNotes : List Int -> List Int -> Oscillator -> ( Oscillator, Effects () )
 updateNotes notes' oldNotes' oscillator =
   let
     notes =
@@ -87,78 +89,13 @@ updateNotes notes' oldNotes' oscillator =
     destroyed =
       List.map (destroyOscillator oscillator) destroy
   in
-    oscillator
+    ( oscillator, Effects.batch <| List.concat [ created, destroyed ] )
 
 
-updateDetune : Oscillator -> Oscillator
+updateDetune : Oscillator -> ( Oscillator, Effects () )
 updateDetune input =
   let
-    _ =
+    detune =
       setOscillatorDetune input input.detune
   in
-    input
-
-
-
--- Helper functions
-
-
-keysToFreq : Set.Set KeyCode -> List Int
-keysToFreq keys =
-  let
-    maybeInts =
-      List.map Char.fromCode (Set.toList keys)
-        |> List.map charToFreq
-
-    maybeToList mx xs =
-      case mx of
-        Just x ->
-          x :: xs
-
-        Nothing ->
-          xs
-  in
-    List.foldl maybeToList [] maybeInts
-
-
-charToFreq : Char -> Maybe Int
-charToFreq char =
-  case char of
-    'A' ->
-      Just 440
-
-    'W' ->
-      Just 466
-
-    'S' ->
-      Just 494
-
-    'D' ->
-      Just 523
-
-    'R' ->
-      Just 554
-
-    'F' ->
-      Just 587
-
-    'T' ->
-      Just 622
-
-    'G' ->
-      Just 659
-
-    'H' ->
-      Just 698
-
-    'U' ->
-      Just 740
-
-    'J' ->
-      Just 784
-
-    'I' ->
-      Just 831
-
-    _ ->
-      Nothing
+    ( input, detune )

@@ -10,6 +10,8 @@ var app = Elm.fullscreen(
           []
         },
         detuneKnob:
+        { angle: 0 },
+        waveformSelector:
         { angle: 0 }
       }
     }

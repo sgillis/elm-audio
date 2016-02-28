@@ -4,7 +4,9 @@ import Audio exposing (Audio, Oscillator)
 import Effects exposing (Effects)
 import Html exposing (..)
 import Keyboard
-import Knob
+import Keys
+import MinMaxKnob
+import WaveformKnob
 import Signal exposing (Signal)
 import StartApp
 import Task
@@ -12,20 +14,23 @@ import Task
 
 type alias Model =
   { audio : Audio
-  , detuneKnob : Knob.Model
+  , detuneKnob : MinMaxKnob.Model
+  , waveformSelector : WaveformKnob.Model
   }
 
 
 type Action
   = NoOp
   | AudioUpdate Audio
-  | DetuneKnobAction Knob.Action
+  | DetuneKnobAction MinMaxKnob.Action
+  | WaveformSelectorAction WaveformKnob.Action
 
 
 init : ( Model, Effects Action )
 init =
   ( { audio = Audio.init
-    , detuneKnob = Knob.init
+    , detuneKnob = MinMaxKnob.init
+    , waveformSelector = WaveformKnob.init
     }
   , Effects.none
   )
@@ -39,19 +44,28 @@ update action model =
 
     AudioUpdate audio ->
       let
-        audio' =
+        ( audio', fx ) =
           Audio.update audio model.audio
       in
         ( { model | audio = audio' }
-        , Effects.none
+        , Effects.map (\_ -> NoOp) fx
         )
 
     DetuneKnobAction act ->
       let
         knob' =
-          Knob.update act model.detuneKnob
+          MinMaxKnob.update act model.detuneKnob
       in
         ( { model | detuneKnob = knob' }
+        , Effects.none
+        )
+
+    WaveformSelectorAction act ->
+      let
+        knob' =
+          WaveformKnob.update act model.waveformSelector
+      in
+        ( { model | waveformSelector = knob' }
         , Effects.none
         )
 
@@ -60,10 +74,12 @@ view : Signal.Address Action -> Model -> Html
 view address model =
   div
     []
-    [ Knob.view
+    [ MinMaxKnob.view
         (Signal.forwardTo address DetuneKnobAction)
         model.detuneKnob
-    , text <| Audio.view model.audio
+    , WaveformKnob.view
+        (Signal.forwardTo address WaveformSelectorAction)
+        model.waveformSelector
     ]
 
 
@@ -137,4 +153,4 @@ oscillator2 =
 
 frequencies : Signal (List Int)
 frequencies =
-  Signal.map Audio.keysToFreq Keyboard.keysDown
+  Signal.map Keys.keysToFreq Keyboard.keysDown

@@ -10,7 +10,8 @@ import Json.Decode as Decode
 
 
 type alias Model =
-  { angle : Int }
+  { angle : Int
+  }
 
 
 init : Model
