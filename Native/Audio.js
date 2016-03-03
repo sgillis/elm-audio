@@ -17,11 +17,11 @@ Elm.Native.Audio.make = function(elm){
          2: {}
         }
 
-    var oscillator = F3(function(index, detune, frequency){
+    var oscillator = F4(function(index, waveform, detune, frequency){
         return Task.asyncFunction(function(callback){
             var node = ctx.createOscillator();
             node.frequency.value = frequency;
-            node.type = "sawtooth";
+            node.type = waveform;
             node.detune.value = detune / 27;
             node.start();
             node.connect(gain);

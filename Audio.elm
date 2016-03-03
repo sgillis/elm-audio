@@ -7,7 +7,7 @@ import Set
 
 createOscillator : Oscillator -> Int -> Effects ()
 createOscillator osc freq =
-  Native.Audio.oscillator osc.index osc.detune freq
+  Native.Audio.oscillator osc.index osc.waveform osc.detune freq
     |> Effects.task
 
 
@@ -39,6 +39,7 @@ init =
 type alias Oscillator =
   { index : Int
   , detune : Int
+  , waveform : String
   }
 
 
@@ -46,6 +47,7 @@ initOscillator : Int -> Oscillator
 initOscillator index =
   { index = index
   , detune = 0
+  , waveform = "sine"
   }
 
 

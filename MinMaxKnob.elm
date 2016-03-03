@@ -14,7 +14,7 @@ type Action
 
 init : Model
 init =
-  Knob.init
+  Knob.init 28 False
 
 
 update : Action -> Model -> Model

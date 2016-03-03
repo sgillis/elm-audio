@@ -12091,11 +12091,11 @@ Elm.Native.Audio.make = function(elm){
          2: {}
         }
 
-    var oscillator = F3(function(index, detune, frequency){
+    var oscillator = F4(function(index, waveform, detune, frequency){
         return Task.asyncFunction(function(callback){
             var node = ctx.createOscillator();
             node.frequency.value = frequency;
-            node.type = "sawtooth";
+            node.type = waveform;
             node.detune.value = detune / 27;
             node.start();
             node.connect(gain);
@@ -12146,10 +12146,10 @@ Elm.Audio.make = function (_elm) {
    $Signal = Elm.Signal.make(_elm);
    var _op = {};
    var initOscillator = function (index) {
-      return {index: index,detune: 0};
+      return {index: index,detune: 0,waveform: "sine"};
    };
-   var Oscillator = F2(function (a,b) {
-      return {index: a,detune: b};
+   var Oscillator = F3(function (a,b,c) {
+      return {index: a,detune: b,waveform: c};
    });
    var init = {oscillators: _U.list([]),notes: _U.list([])};
    var Audio = F2(function (a,b) {
@@ -12170,8 +12170,9 @@ Elm.Audio.make = function (_elm) {
       freq));
    });
    var createOscillator = F2(function (osc,freq) {
-      return $Effects.task(A3($Native$Audio.oscillator,
+      return $Effects.task(A4($Native$Audio.oscillator,
       osc.index,
+      osc.waveform,
       osc.detune,
       freq));
    });
@@ -12265,6 +12266,38 @@ Elm.Keys.make = function (_elm) {
    };
    return _elm.Keys.values = {_op: _op,keysToFreq: keysToFreq};
 };
+Elm.List = Elm.List || {};
+Elm.List.Extra = Elm.List.Extra || {};
+Elm.List.Extra.make = function (_elm) {
+   "use strict";
+   _elm.List = _elm.List || {};
+   _elm.List.Extra = _elm.List.Extra || {};
+   if (_elm.List.Extra.values) return _elm.List.Extra.values;
+   var _U = Elm.Native.Utils.make(_elm),
+   $Basics = Elm.Basics.make(_elm),
+   $Debug = Elm.Debug.make(_elm),
+   $List = Elm.List.make(_elm),
+   $Maybe = Elm.Maybe.make(_elm),
+   $Result = Elm.Result.make(_elm),
+   $Signal = Elm.Signal.make(_elm);
+   var _op = {};
+   var zip = F2(function (xs,ys) {
+      var _p0 = xs;
+      if (_p0.ctor === "[]") {
+            return _U.list([]);
+         } else {
+            var _p1 = ys;
+            if (_p1.ctor === "[]") {
+                  return _U.list([]);
+               } else {
+                  return A2($List._op["::"],
+                  {ctor: "_Tuple2",_0: _p0._0,_1: _p1._0},
+                  A2(zip,_p0._1,_p1._1));
+               }
+         }
+   });
+   return _elm.List.Extra.values = {_op: _op,zip: zip};
+};
 Elm.Knob = Elm.Knob || {};
 Elm.Knob.make = function (_elm) {
    "use strict";
@@ -12278,10 +12311,25 @@ Elm.Knob.make = function (_elm) {
    $Html$Events = Elm.Html.Events.make(_elm),
    $Json$Decode = Elm.Json.Decode.make(_elm),
    $List = Elm.List.make(_elm),
+   $List$Extra = Elm.List.Extra.make(_elm),
    $Maybe = Elm.Maybe.make(_elm),
    $Result = Elm.Result.make(_elm),
    $Signal = Elm.Signal.make(_elm);
    var _op = {};
+   var closestStep = F3(function (start,step,value) {
+      closestStep: while (true) {
+         var step$ = $Basics.toFloat(step);
+         var start$ = $Basics.toFloat(start);
+         if (_U.cmp(value,start$ + step$) > 0) {
+               var _v0 = start + step,_v1 = step,_v2 = value;
+               start = _v0;
+               step = _v1;
+               value = _v2;
+               continue closestStep;
+            } else if (_U.cmp(value - start$,start$ + step$ - value) < 0)
+            return start; else return start + step;
+      }
+   });
    var scrollDecoder = A2($Json$Decode.at,
    _U.list(["wheelDelta"]),
    $Json$Decode.$int);
@@ -12313,33 +12361,106 @@ Elm.Knob.make = function (_elm) {
                       "rotate(",
                       A2($Basics._op["++"],angle,"deg)"))}]);
    };
-   var tick = function (active) {
+   var tick = function (_p0) {
+      var _p1 = _p0;
+      var degrees$ = $Basics.toString(_p1._0);
       return A2($Html.div,
       _U.list([$Html$Attributes.classList(_U.list([{ctor: "_Tuple2"
                                                    ,_0: "tick"
                                                    ,_1: true}
-                                                  ,{ctor: "_Tuple2",_0: "activetick",_1: active}]))]),
+                                                  ,{ctor: "_Tuple2",_0: "activetick",_1: _p1._1}]))
+              ,$Html$Attributes.style(_U.list([{ctor: "_Tuple2"
+                                               ,_0: "-webkit-transform"
+                                               ,_1: A2($Basics._op["++"],
+                                               "rotate(",
+                                               A2($Basics._op["++"],degrees$,"deg)"))}
+                                              ,{ctor: "_Tuple2"
+                                               ,_0: "-moz-transform"
+                                               ,_1: A2($Basics._op["++"],
+                                               "rotate(",
+                                               A2($Basics._op["++"],degrees$,"deg)"))}
+                                              ,{ctor: "_Tuple2"
+                                               ,_0: "-o-transform"
+                                               ,_1: A2($Basics._op["++"],
+                                               "rotate(",
+                                               A2($Basics._op["++"],degrees$,"deg)"))}
+                                              ,{ctor: "_Tuple2"
+                                               ,_0: "-ms-transform"
+                                               ,_1: A2($Basics._op["++"],
+                                               "rotate(",
+                                               A2($Basics._op["++"],degrees$,"deg)"))}
+                                              ,{ctor: "_Tuple2"
+                                               ,_0: "transform"
+                                               ,_1: A2($Basics._op["++"],
+                                               "rotate(",
+                                               A2($Basics._op["++"],degrees$,"deg)"))}]))]),
       _U.list([]));
    };
+   var SetClosest = {ctor: "SetClosest"};
    var update = F2(function (action,model) {
-      var _p0 = action;
-      if (_p0.ctor === "NoOp") {
-            return model;
-         } else {
-            return _U.cmp(_p0._0,0) > 0 ? _U.update(model,
-            {angle: A2($Basics.min,270,model.angle + 2)}) : _U.update(model,
-            {angle: A2($Basics.max,0,model.angle - 2)});
-         }
+      update: while (true) {
+         var _p2 = action;
+         switch (_p2.ctor)
+         {case "NoOp": return model;
+            case "Scroll": if (_U.cmp(_p2._0,0) > 0) {
+                    var _v5 = SetClosest,
+                    _v6 = _U.update(model,
+                    {angle: A2($Basics.min,270,model.angle + 2)});
+                    action = _v5;
+                    model = _v6;
+                    continue update;
+                 } else {
+                    var _v7 = SetClosest,
+                    _v8 = _U.update(model,
+                    {angle: A2($Basics.max,0,model.angle - 2)});
+                    action = _v7;
+                    model = _v8;
+                    continue update;
+                 }
+            default:
+            var step = $Basics.toFloat(270) / $Basics.toFloat(model.steps);
+              var min = $Basics.round(step / 2);
+              var closest = min + A3(closestStep,
+              min,
+              $Basics.round(step),
+              $Basics.toFloat(model.angle - $Basics.round($Basics.toFloat(min) / 2)));
+              return _U.update(model,{closest: closest});}
+      }
    });
    var Scroll = function (a) {    return {ctor: "Scroll",_0: a};};
    var view = F2(function (address,model) {
-      var active = $Basics.round($Basics.toFloat(model.angle) / 10 + 1);
-      var inactive = 28 - active;
+      var tickDegreeStep = $Basics.toFloat(270) / $Basics.toFloat(model.steps);
+      var tickDegreeOffset = $Basics.round(tickDegreeStep / 2);
+      var knobAngle = $Basics.not(model.snap) ? model.angle : A2($Basics.min,
+      model.closest - tickDegreeOffset,
+      270 - tickDegreeOffset);
+      var tickDegrees = A2($List.indexedMap,
+      F2(function (n,_p3) {
+         return tickDegreeOffset + $Basics.round($Basics.toFloat(-135) + $Basics.toFloat(n) * tickDegreeStep);
+      }),
+      A2($List.repeat,model.steps,0));
+      var active = $Basics.round($Basics.toFloat(model.angle) / ($Basics.toFloat(270) / $Basics.toFloat(model.steps)));
+      var inactive = model.steps - active;
+      var tickActive = function () {
+         if ($Basics.not(model.snap)) return A2($Basics._op["++"],
+            A2($List.repeat,active,true),
+            A2($List.repeat,inactive,false)); else {
+               var x$ = function (x) {
+                  return x - (model.closest - 135 - tickDegreeOffset);
+               };
+               return A2($List.map,
+               function (x) {
+                  return _U.cmp(-2,x$(x)) < 1 && _U.cmp(x$(x),2) < 1;
+               },
+               tickDegrees);
+            }
+      }();
+      var tickList = A2($List$Extra.zip,tickDegrees,tickActive);
       return A2($Html.div,
       _U.list([$Html$Attributes.$class("knob-surround")]),
       _U.list([A2($Html.div,
               _U.list([$Html$Attributes.$class("knob")
-                      ,$Html$Attributes.style(knobStyle(model.angle))
+                      ,$Html$Attributes.style(knobStyle(knobAngle))
                       ,A4($Html$Events.onWithOptions,
                       "mousewheel",
                       {stopPropagation: true,preventDefault: true},
@@ -12348,23 +12469,30 @@ Elm.Knob.make = function (_elm) {
                          return A2($Signal.message,address,Scroll(x));
                       })]),
               _U.list([]))
-              ,A2($Html.span,
+              ,$Basics.not(model.snap) ? A2($Html.span,
               _U.list([$Html$Attributes.$class("min")]),
-              _U.list([$Html.text("Min")]))
-              ,A2($Html.span,
+              _U.list([$Html.text("Min")])) : A2($Html.div,
+              _U.list([]),
+              _U.list([]))
+              ,$Basics.not(model.snap) ? A2($Html.span,
               _U.list([$Html$Attributes.$class("max")]),
-              _U.list([$Html.text("Max")]))
+              _U.list([$Html.text("Max")])) : A2($Html.div,
+              _U.list([]),
+              _U.list([]))
               ,A2($Html.div,
               _U.list([$Html$Attributes.$class("ticks")]),
-              A2($List.map,
-              tick,
-              A2($Basics._op["++"],
-              A2($List.repeat,active,true),
-              A2($List.repeat,inactive,false))))]));
+              A2($List.map,tick,tickList))]));
    });
    var NoOp = {ctor: "NoOp"};
-   var init = {angle: 0};
-   var Model = function (a) {    return {angle: a};};
+   var init = F2(function (steps,snap) {
+      return {angle: 0
+             ,steps: steps
+             ,snap: snap
+             ,closest: $Basics.round($Basics.toFloat(270) / $Basics.toFloat(steps))};
+   });
+   var Model = F4(function (a,b,c,d) {
+      return {angle: a,steps: b,snap: c,closest: d};
+   });
    return _elm.Knob.values = {_op: _op
                              ,init: init
                              ,update: update
@@ -12390,7 +12518,7 @@ Elm.MinMaxKnob.make = function (_elm) {
       var _p0 = act;
       return A2($Knob.update,_p0._0,model);
    });
-   var init = $Knob.init;
+   var init = A2($Knob.init,28,false);
    var KnobAction = function (a) {
       return {ctor: "KnobAction",_0: a};
    };
@@ -12419,11 +12547,20 @@ Elm.WaveformKnob.make = function (_elm) {
    $Result = Elm.Result.make(_elm),
    $Signal = Elm.Signal.make(_elm);
    var _op = {};
+   var toWaveform = function (model) {
+      var _p0 = model.closest;
+      switch (_p0)
+      {case 68: return "sine";
+         case 136: return "square";
+         case 204: return "sawtooth";
+         case 272: return "triangle";
+         default: return A2($Debug.log,"default waveform","sine");}
+   };
    var update = F2(function (act,model) {
-      var _p0 = act;
-      return A2($Knob.update,_p0._0,model);
+      var _p1 = act;
+      return A2($Knob.update,_p1._0,model);
    });
-   var init = $Knob.init;
+   var init = A2($Knob.init,4,true);
    var KnobAction = function (a) {
       return {ctor: "KnobAction",_0: a};
    };
@@ -12434,6 +12571,7 @@ Elm.WaveformKnob.make = function (_elm) {
    });
    return _elm.WaveformKnob.values = {_op: _op
                                      ,init: init
+                                     ,toWaveform: toWaveform
                                      ,update: update
                                      ,view: view};
 };
@@ -12462,23 +12600,52 @@ Elm.Main.make = function (_elm) {
    var frequencies = A2($Signal.map,
    $Keys.keysToFreq,
    $Keyboard.keysDown);
-   var oscillator1 = A3($Signal.map2,
-   F2(function (detune,osc) {
-      return _U.update(osc,{detune: detune});
-   }),
-   $Signal.constant(0),
-   $Signal.constant($Audio.initOscillator(1)));
+   var oscillator2 = function (model) {
+      return A3(F3(function (detune,waveform,osc) {
+         return _U.update(osc,{detune: detune,waveform: waveform});
+      }),
+      model.detuneKnob.angle,
+      $WaveformKnob.toWaveform(model.waveformSelector),
+      $Audio.initOscillator(2));
+   };
+   var oscillator1 = function (model) {
+      return A3(F3(function (detune,waveform,osc) {
+         return _U.update(osc,{detune: detune,waveform: waveform});
+      }),
+      0,
+      $WaveformKnob.toWaveform(model.waveformSelector),
+      $Audio.initOscillator(1));
+   };
+   var audioInput$ = F2(function (model,frequencies) {
+      return A2(F2(function (osc,audio) {
+         return _U.update(audio,
+         {oscillators: A2($List._op["::"],osc,audio.oscillators)});
+      }),
+      oscillator2(model),
+      A2(F2(function (osc,audio) {
+         return _U.update(audio,
+         {oscillators: A2($List._op["::"],osc,audio.oscillators)});
+      }),
+      oscillator1(model),
+      A2(F2(function (freq,osc) {
+         return _U.update(osc,{notes: freq});
+      }),
+      frequencies,
+      $Audio.init)));
+   });
    var receivedModel = Elm.Native.Port.make(_elm).inboundSignal("receivedModel",
    "Main.Model",
    function (v) {
       return typeof v === "object" && "audio" in v && "detuneKnob" in v && "waveformSelector" in v ? {_: {}
                                                                                                      ,audio: typeof v.audio === "object" && "oscillators" in v.audio && "notes" in v.audio ? {_: {}
                                                                                                                                                                                              ,oscillators: typeof v.audio.oscillators === "object" && v.audio.oscillators instanceof Array ? Elm.Native.List.make(_elm).fromArray(v.audio.oscillators.map(function (v) {
-                                                                                                                                                                                                return typeof v === "object" && "index" in v && "detune" in v ? {_: {}
-                                                                                                                                                                                                                                                                ,index: typeof v.index === "number" && isFinite(v.index) && Math.floor(v.index) === v.index ? v.index : _U.badPort("an integer",
-                                                                                                                                                                                                                                                                v.index)
-                                                                                                                                                                                                                                                                ,detune: typeof v.detune === "number" && isFinite(v.detune) && Math.floor(v.detune) === v.detune ? v.detune : _U.badPort("an integer",
-                                                                                                                                                                                                                                                                v.detune)} : _U.badPort("an object with fields `index`, `detune`",
+                                                                                                                                                                                                return typeof v === "object" && "index" in v && "detune" in v && "waveform" in v ? {_: {}
+                                                                                                                                                                                                                                                                                   ,index: typeof v.index === "number" && isFinite(v.index) && Math.floor(v.index) === v.index ? v.index : _U.badPort("an integer",
+                                                                                                                                                                                                                                                                                   v.index)
+                                                                                                                                                                                                                                                                                   ,detune: typeof v.detune === "number" && isFinite(v.detune) && Math.floor(v.detune) === v.detune ? v.detune : _U.badPort("an integer",
+                                                                                                                                                                                                                                                                                   v.detune)
+                                                                                                                                                                                                                                                                                   ,waveform: typeof v.waveform === "string" || typeof v.waveform === "object" && v.waveform instanceof String ? v.waveform : _U.badPort("a string",
+                                                                                                                                                                                                                                                                                   v.waveform)} : _U.badPort("an object with fields `index`, `detune`, `waveform`",
                                                                                                                                                                                                 v);
                                                                                                                                                                                              })) : _U.badPort("an array",
                                                                                                                                                                                              v.audio.oscillators)
@@ -12488,46 +12655,32 @@ Elm.Main.make = function (_elm) {
                                                                                                                                                                                              })) : _U.badPort("an array",
                                                                                                                                                                                              v.audio.notes)} : _U.badPort("an object with fields `oscillators`, `notes`",
                                                                                                      v.audio)
-                                                                                                     ,detuneKnob: typeof v.detuneKnob === "object" && "angle" in v.detuneKnob ? {_: {}
-                                                                                                                                                                                ,angle: typeof v.detuneKnob.angle === "number" && isFinite(v.detuneKnob.angle) && Math.floor(v.detuneKnob.angle) === v.detuneKnob.angle ? v.detuneKnob.angle : _U.badPort("an integer",
-                                                                                                                                                                                v.detuneKnob.angle)} : _U.badPort("an object with fields `angle`",
+                                                                                                     ,detuneKnob: typeof v.detuneKnob === "object" && "angle" in v.detuneKnob && "steps" in v.detuneKnob && "snap" in v.detuneKnob && "closest" in v.detuneKnob ? {_: {}
+                                                                                                                                                                                                                                                                  ,angle: typeof v.detuneKnob.angle === "number" && isFinite(v.detuneKnob.angle) && Math.floor(v.detuneKnob.angle) === v.detuneKnob.angle ? v.detuneKnob.angle : _U.badPort("an integer",
+                                                                                                                                                                                                                                                                  v.detuneKnob.angle)
+                                                                                                                                                                                                                                                                  ,steps: typeof v.detuneKnob.steps === "number" && isFinite(v.detuneKnob.steps) && Math.floor(v.detuneKnob.steps) === v.detuneKnob.steps ? v.detuneKnob.steps : _U.badPort("an integer",
+                                                                                                                                                                                                                                                                  v.detuneKnob.steps)
+                                                                                                                                                                                                                                                                  ,snap: typeof v.detuneKnob.snap === "boolean" ? v.detuneKnob.snap : _U.badPort("a boolean (true or false)",
+                                                                                                                                                                                                                                                                  v.detuneKnob.snap)
+                                                                                                                                                                                                                                                                  ,closest: typeof v.detuneKnob.closest === "number" && isFinite(v.detuneKnob.closest) && Math.floor(v.detuneKnob.closest) === v.detuneKnob.closest ? v.detuneKnob.closest : _U.badPort("an integer",
+                                                                                                                                                                                                                                                                  v.detuneKnob.closest)} : _U.badPort("an object with fields `angle`, `steps`, `snap`, `closest`",
                                                                                                      v.detuneKnob)
-                                                                                                     ,waveformSelector: typeof v.waveformSelector === "object" && "angle" in v.waveformSelector ? {_: {}
-                                                                                                                                                                                                  ,angle: typeof v.waveformSelector.angle === "number" && isFinite(v.waveformSelector.angle) && Math.floor(v.waveformSelector.angle) === v.waveformSelector.angle ? v.waveformSelector.angle : _U.badPort("an integer",
-                                                                                                                                                                                                  v.waveformSelector.angle)} : _U.badPort("an object with fields `angle`",
+                                                                                                     ,waveformSelector: typeof v.waveformSelector === "object" && "angle" in v.waveformSelector && "steps" in v.waveformSelector && "snap" in v.waveformSelector && "closest" in v.waveformSelector ? {_: {}
+                                                                                                                                                                                                                                                                                                      ,angle: typeof v.waveformSelector.angle === "number" && isFinite(v.waveformSelector.angle) && Math.floor(v.waveformSelector.angle) === v.waveformSelector.angle ? v.waveformSelector.angle : _U.badPort("an integer",
+                                                                                                                                                                                                                                                                                                      v.waveformSelector.angle)
+                                                                                                                                                                                                                                                                                                      ,steps: typeof v.waveformSelector.steps === "number" && isFinite(v.waveformSelector.steps) && Math.floor(v.waveformSelector.steps) === v.waveformSelector.steps ? v.waveformSelector.steps : _U.badPort("an integer",
+                                                                                                                                                                                                                                                                                                      v.waveformSelector.steps)
+                                                                                                                                                                                                                                                                                                      ,snap: typeof v.waveformSelector.snap === "boolean" ? v.waveformSelector.snap : _U.badPort("a boolean (true or false)",
+                                                                                                                                                                                                                                                                                                      v.waveformSelector.snap)
+                                                                                                                                                                                                                                                                                                      ,closest: typeof v.waveformSelector.closest === "number" && isFinite(v.waveformSelector.closest) && Math.floor(v.waveformSelector.closest) === v.waveformSelector.closest ? v.waveformSelector.closest : _U.badPort("an integer",
+                                                                                                                                                                                                                                                                                                      v.waveformSelector.closest)} : _U.badPort("an object with fields `angle`, `steps`, `snap`, `closest`",
                                                                                                      v.waveformSelector)} : _U.badPort("an object with fields `audio`, `detuneKnob`, `waveformSelector`",
       v);
    });
-   var oscillator2 = A3($Signal.map2,
-   F2(function (detune,osc) {
-      return _U.update(osc,{detune: detune});
-   }),
-   $Signal.dropRepeats(A2($Signal.map,
-   function (_p0) {
-      return function (_) {
-         return _.angle;
-      }(function (_) {    return _.detuneKnob;}(_p0));
-   },
-   receivedModel)),
-   $Signal.constant($Audio.initOscillator(2)));
    var audioInput = A3($Signal.map2,
-   F2(function (osc,audio) {
-      return _U.update(audio,
-      {oscillators: A2($List._op["::"],osc,audio.oscillators)});
-   }),
-   oscillator2,
-   A3($Signal.map2,
-   F2(function (osc,audio) {
-      return _U.update(audio,
-      {oscillators: A2($List._op["::"],osc,audio.oscillators)});
-   }),
-   oscillator1,
-   A3($Signal.map2,
-   F2(function (freq,osc) {
-      return _U.update(osc,{notes: freq});
-   }),
-   frequencies,
-   $Signal.constant($Audio.init))));
+   audioInput$,
+   $Signal.dropRepeats(receivedModel),
+   frequencies);
    var init = {ctor: "_Tuple2"
               ,_0: {audio: $Audio.init
                    ,detuneKnob: $MinMaxKnob.init
@@ -12554,27 +12707,27 @@ Elm.Main.make = function (_elm) {
    };
    var NoOp = {ctor: "NoOp"};
    var update = F2(function (action,model) {
-      var _p1 = action;
-      switch (_p1.ctor)
+      var _p0 = action;
+      switch (_p0.ctor)
       {case "NoOp": return {ctor: "_Tuple2"
                            ,_0: model
                            ,_1: $Effects.none};
-         case "AudioUpdate": var _p2 = A2($Audio.update,
-           _p1._0,
+         case "AudioUpdate": var _p1 = A2($Audio.update,
+           _p0._0,
            model.audio);
-           var audio$ = _p2._0;
-           var fx = _p2._1;
+           var audio$ = _p1._0;
+           var fx = _p1._1;
            return {ctor: "_Tuple2"
                   ,_0: _U.update(model,{audio: audio$})
-                  ,_1: A2($Effects.map,function (_p3) {    return NoOp;},fx)};
+                  ,_1: A2($Effects.map,function (_p2) {    return NoOp;},fx)};
          case "DetuneKnobAction": var knob$ = A2($MinMaxKnob.update,
-           _p1._0,
+           _p0._0,
            model.detuneKnob);
            return {ctor: "_Tuple2"
                   ,_0: _U.update(model,{detuneKnob: knob$})
                   ,_1: $Effects.none};
          default: var knob$ = A2($WaveformKnob.update,
-           _p1._0,
+           _p0._0,
            model.waveformSelector);
            return {ctor: "_Tuple2"
                   ,_0: _U.update(model,{waveformSelector: knob$})
@@ -12589,13 +12742,21 @@ Elm.Main.make = function (_elm) {
    var sendModel = Elm.Native.Port.make(_elm).outboundSignal("sendModel",
    function (v) {
       return {audio: {oscillators: Elm.Native.List.make(_elm).toArray(v.audio.oscillators).map(function (v) {
-                        return {index: v.index,detune: v.detune};
+                        return {index: v.index
+                               ,detune: v.detune
+                               ,waveform: v.waveform};
                      })
                      ,notes: Elm.Native.List.make(_elm).toArray(v.audio.notes).map(function (v) {
                         return v;
                      })}
-             ,detuneKnob: {angle: v.detuneKnob.angle}
-             ,waveformSelector: {angle: v.waveformSelector.angle}};
+             ,detuneKnob: {angle: v.detuneKnob.angle
+                          ,steps: v.detuneKnob.steps
+                          ,snap: v.detuneKnob.snap
+                          ,closest: v.detuneKnob.closest}
+             ,waveformSelector: {angle: v.waveformSelector.angle
+                                ,steps: v.waveformSelector.steps
+                                ,snap: v.waveformSelector.snap
+                                ,closest: v.waveformSelector.closest}};
    },
    model);
    var tasks = Elm.Native.Task.make(_elm).performSignal("tasks",

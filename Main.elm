@@ -110,6 +110,8 @@ port tasks =
 
 
 port receivedModel : Signal Model
+
+
 port sendModel : Signal Model
 port sendModel =
   model
@@ -121,34 +123,44 @@ port sendModel =
 
 audioInput : Signal Audio
 audioInput =
-  (Signal.constant <| Audio.init)
-    |> Signal.map2
-        (\freq osc -> { osc | notes = freq })
+  Signal.map2 audioInput' (Signal.dropRepeats receivedModel) frequencies
+
+
+audioInput' : Model -> List Int -> Audio
+audioInput' model frequencies =
+  Audio.init
+    |> (\freq osc -> { osc | notes = freq })
         frequencies
-    |> Signal.map2
-        (\osc audio -> { audio | oscillators = osc :: audio.oscillators })
-        oscillator1
-    |> Signal.map2
-        (\osc audio -> { audio | oscillators = osc :: audio.oscillators })
-        oscillator2
+    |> (\osc audio -> { audio | oscillators = osc :: audio.oscillators })
+        (oscillator1 model)
+    |> (\osc audio -> { audio | oscillators = osc :: audio.oscillators })
+        (oscillator2 model)
 
 
-oscillator1 : Signal Oscillator
-oscillator1 =
-  (Signal.constant <| Audio.initOscillator 1)
-    |> Signal.map2
-        (\detune osc -> { osc | detune = detune })
-        (Signal.constant 0)
+oscillator1 : Model -> Oscillator
+oscillator1 model =
+  Audio.initOscillator 1
+    |> (\detune waveform osc ->
+          { osc
+            | detune = detune
+            , waveform = waveform
+          }
+       )
+        0
+        (WaveformKnob.toWaveform model.waveformSelector)
 
 
-oscillator2 : Signal Oscillator
-oscillator2 =
-  (Signal.constant <| Audio.initOscillator 2)
-    |> Signal.map2
-        (\detune osc -> { osc | detune = detune })
-        (Signal.dropRepeats
-          (Signal.map (.angle << .detuneKnob) receivedModel)
-        )
+oscillator2 : Model -> Oscillator
+oscillator2 model =
+  Audio.initOscillator 2
+    |> (\detune waveform osc ->
+          { osc
+            | detune = detune
+            , waveform = waveform
+          }
+       )
+        model.detuneKnob.angle
+        (WaveformKnob.toWaveform model.waveformSelector)
 
 
 frequencies : Signal (List Int)
