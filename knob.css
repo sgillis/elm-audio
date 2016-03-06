@@ -9,11 +9,11 @@ body {
 .knob-surround {
   position: relative;
   background-color: grey;
-  width: 14em;
-  height: 14em;
+  width: 70px;
+  height: 70px;
   border-radius: 50%;
-  border: solid 0.25em #0e0e0e;
-  margin: 5em auto;
+  border: solid 2px #0e0e0e;
+  margin: 30px;
   background: #181818;
   background: -webkit-gradient(linear, left bottom, left top, color-stop(0, #1d1d1d), color-stop(1, #131313));
   background: -ms-linear-gradient(bottom, #1d1d1d, #131313);
@@ -39,34 +39,15 @@ body {
 .knob:before {
   content: "";
   position: absolute;
-  bottom: 19%;
-  left: 19%;
-  width: 3%;
-  height: 3%;
+  bottom: 15px;
+  left: 15px;
+  width: 3px;
+  height: 3px;
   background-color: #a8d8f8;
   border-radius: 50%;
   -webkit-box-shadow: 0 0 0.4em 0 #79c3f4;
   -moz-box-shadow: 0 0 0.4em 0 #79c3f4;
   box-shadow: 0 0 0.4em 0 #79c3f4;
-}
-.min,
-.max {
-  display: block;
-  font-family: "Varela Round", sans-serif;
-  color: rgba(255, 255, 255, 0.4);
-  text-transform: uppercase;
-  -webkit-font-smoothing: antialiased;
-  font-size: 70%;
-  position: absolute;
-  opacity: .5;
-}
-.min {
-  bottom: 1em;
-  left: -2.5em;
-}
-.max {
-  bottom: 1em;
-  right: -2.5em;
 }
 .tick {
   position: absolute;
@@ -79,11 +60,11 @@ body {
 }
 .tick:after {
   content: "";
-  width: .08em;
-  height: .6em;
+  width: 1px;
+  height: 4px;
   background-color: rgba(255, 255, 255, 0.2);
   position: absolute;
-  top: -1.5em;
+  top: -15px;
   left: 50%;
   -webkit-transition: all 180ms ease-out;
   -moz-transition: all 180ms ease-out;
@@ -99,28 +80,6 @@ body {
   -moz-transition: all 50ms ease-in;
   -o-transition: all 50ms ease-in;
   transition: all 50ms ease-in;
-}
-h1 {
-  font-weight: normal;
-  margin: 2em 0;
-}
-p {
-  line-height: 150%;
-  max-width: 36em;
-  margin: 1em auto;
-}
-a {
-  color: #aaa;
-  text-decoration: none;
-  border-bottom: 1px solid #444;
-  -webkit-transition: color 0.2s ease-in;
-  -moz-transition: color 0.2s ease-in;
-  -o-transition: color 0.2s ease-in;
-  transition: color 0.2s ease-in;
-}
-a:hover,
-a:focus {
-  color: #eee;
 }
 body,
 .knob {

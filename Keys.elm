@@ -1,15 +1,30 @@
-module Keys (keysToFreq) where
+module Keys (Note(..), keysToNote, noteToFreq) where
 
 import Char exposing (KeyCode)
 import Set
 
 
-keysToFreq : Set.Set KeyCode -> List Int
-keysToFreq keys =
+type Note
+  = C
+  | Cs
+  | D
+  | Ds
+  | E
+  | F
+  | Fs
+  | G
+  | Gs
+  | A
+  | As
+  | B
+
+
+keysToNote : Set.Set KeyCode -> List Note
+keysToNote keys =
   let
-    maybeInts =
+    maybeFloats =
       List.map Char.fromCode (Set.toList keys)
-        |> List.map charToFreq
+        |> List.map charToNote
 
     maybeToList mx xs =
       case mx of
@@ -19,47 +34,87 @@ keysToFreq keys =
         Nothing ->
           xs
   in
-    List.foldl maybeToList [] maybeInts
+    List.foldl maybeToList [] maybeFloats
 
 
-charToFreq : Char -> Maybe Int
-charToFreq char =
+noteToFreq : Note -> Float
+noteToFreq note =
+  case note of
+    C ->
+      261.626
+
+    Cs ->
+      277.183
+
+    D ->
+      293.665
+
+    Ds ->
+      311.127
+
+    E ->
+      329.628
+
+    F ->
+      349.228
+
+    Fs ->
+      369.994
+
+    G ->
+      391.995
+
+    Gs ->
+      415.305
+
+    A ->
+      440
+
+    As ->
+      466.164
+
+    B ->
+      493.883
+
+
+charToNote : Char -> Maybe Note
+charToNote char =
   case char of
     'A' ->
-      Just 440
+      Just C
 
     'W' ->
-      Just 466
+      Just Cs
 
     'S' ->
-      Just 494
+      Just D
+
+    'E' ->
+      Just Ds
 
     'D' ->
-      Just 523
-
-    'R' ->
-      Just 554
+      Just E
 
     'F' ->
-      Just 587
+      Just F
 
     'T' ->
-      Just 622
+      Just Fs
 
     'G' ->
-      Just 659
+      Just G
+
+    'Y' ->
+      Just Gs
 
     'H' ->
-      Just 698
+      Just A
 
     'U' ->
-      Just 740
+      Just As
 
     'J' ->
-      Just 784
-
-    'I' ->
-      Just 831
+      Just B
 
     _ ->
       Nothing

@@ -1,0 +1,28 @@
+.keyboard {
+    position: relative;
+    margin: auto;
+}
+
+.key {
+    display: inline-block;
+    position: relative;
+    width: 35px;
+    padding-bottom: 112px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+    background: white;
+    border-radius: 2px;
+}
+
+.sharp {
+    position: absolute;
+    z-index: 10;
+    transform-origin: center top;
+    transform: translateX(-50%) scale(0.6);
+    border-radius: 0 0 4px 4px;
+    width: 40px;
+    background: #111;
+}
+
+.active {
+    background: rgb(255,250,205);
+}

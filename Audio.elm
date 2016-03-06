@@ -5,13 +5,13 @@ import Native.Audio
 import Set
 
 
-createOscillator : Oscillator -> Int -> Effects ()
+createOscillator : Oscillator -> Float -> Effects ()
 createOscillator osc freq =
   Native.Audio.oscillator osc.index osc.waveform osc.detune freq
     |> Effects.task
 
 
-destroyOscillator : Oscillator -> Int -> Effects ()
+destroyOscillator : Oscillator -> Float -> Effects ()
 destroyOscillator osc freq =
   Native.Audio.destroyOscillator osc.index freq
     |> Effects.task
@@ -25,7 +25,7 @@ setOscillatorDetune osc detune =
 
 type alias Audio =
   { oscillators : List Oscillator
-  , notes : List Int
+  , notes : List Float
   }
 
 
@@ -70,7 +70,7 @@ update input playing =
     )
 
 
-updateNotes : List Int -> List Int -> Oscillator -> ( Oscillator, Effects () )
+updateNotes : List Float -> List Float -> Oscillator -> ( Oscillator, Effects () )
 updateNotes notes' oldNotes' oscillator =
   let
     notes =

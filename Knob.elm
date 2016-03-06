@@ -123,14 +123,6 @@ view address model =
               (\x -> Signal.message address (Scroll x))
           ]
           []
-      , if not model.snap then
-          span [ class "min" ] [ text "Min" ]
-        else
-          div [] []
-      , if not model.snap then
-          span [ class "max" ] [ text "Max" ]
-        else
-          div [] []
       , div
           [ class "ticks" ]
           (List.map tick tickList)

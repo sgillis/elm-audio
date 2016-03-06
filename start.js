@@ -1,20 +1,8 @@
 var app = Elm.fullscreen(
     Elm.Main,
-    { receivedModel:
-      { audio:
-        { oscillators:
-          [ { index: 1,
-              playingNotes: [],
-              waveform: "sine",
-              detune: 0 },
-            { index: 2,
-              playingNotes: [],
-              waveform: "sine",
-              detune: 0 }
-          ],
-          notes:
-          []
-        },
+    { receivedFeed:
+      { notes:
+        [],
         detuneKnob:
         { angle: 0,
           steps: 28,
@@ -31,6 +19,6 @@ var app = Elm.fullscreen(
     }
 );
 
-app.ports.sendModel.subscribe(function(model){
-    app.ports.receivedModel.send(model);
+app.ports.sendFeed.subscribe(function(feed){
+    app.ports.receivedFeed.send(feed);
 });

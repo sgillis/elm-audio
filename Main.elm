@@ -9,28 +9,50 @@ import MinMaxKnob
 import WaveformKnob
 import Signal exposing (Signal)
 import StartApp
+import SynthKeyboard
 import Task
 
 
 type alias Model =
   { audio : Audio
+  , notes : List Keys.Note
   , detuneKnob : MinMaxKnob.Model
   , waveformSelector : WaveformKnob.Model
+  , keyboard : SynthKeyboard.Model
+  }
+
+
+type alias Feed =
+  { detuneKnob : MinMaxKnob.Model
+  , waveformSelector : WaveformKnob.Model
+  , notes : List Float
+  }
+
+
+modelToFeed : Model -> Feed
+modelToFeed model =
+  { detuneKnob = model.detuneKnob
+  , waveformSelector = model.waveformSelector
+  , notes = List.map Keys.noteToFreq model.notes
   }
 
 
 type Action
   = NoOp
   | AudioUpdate Audio
+  | SetNotes (List Keys.Note)
   | DetuneKnobAction MinMaxKnob.Action
   | WaveformSelectorAction WaveformKnob.Action
+  | KeyboardAction SynthKeyboard.Action
 
 
 init : ( Model, Effects Action )
 init =
   ( { audio = Audio.init
+    , notes = []
     , detuneKnob = MinMaxKnob.init
     , waveformSelector = WaveformKnob.init
+    , keyboard = SynthKeyboard.init
     }
   , Effects.none
   )
@@ -51,6 +73,11 @@ update action model =
         , Effects.map (\_ -> NoOp) fx
         )
 
+    SetNotes notes ->
+      ( { model | notes = notes }
+      , Effects.none
+      )
+
     DetuneKnobAction act ->
       let
         knob' =
@@ -69,6 +96,15 @@ update action model =
         , Effects.none
         )
 
+    KeyboardAction act ->
+      let
+        keyboard' =
+          SynthKeyboard.update act model.keyboard
+      in
+        ( { model | keyboard = keyboard' }
+        , Effects.none
+        )
+
 
 view : Signal.Address Action -> Model -> Html
 view address model =
@@ -80,6 +116,10 @@ view address model =
     , WaveformKnob.view
         (Signal.forwardTo address WaveformSelectorAction)
         model.waveformSelector
+    , SynthKeyboard.view
+        (Signal.forwardTo address KeyboardAction)
+        model.keyboard
+        model.notes
     ]
 
 
@@ -90,7 +130,10 @@ app =
     , update = update
     , view = view
     , inputs =
-        [ Signal.map AudioUpdate audioInput ]
+        [ Signal.map AudioUpdate audioInput
+        , Signal.map SetNotes
+            <| Signal.map Keys.keysToNote Keyboard.keysDown
+        ]
     }
 
 
@@ -109,12 +152,12 @@ port tasks =
   app.tasks
 
 
-port receivedModel : Signal Model
+port receivedFeed : Signal Feed
 
 
-port sendModel : Signal Model
-port sendModel =
-  model
+port sendFeed : Signal Feed
+port sendFeed =
+  Signal.map modelToFeed model
 
 
 
@@ -123,22 +166,22 @@ port sendModel =
 
 audioInput : Signal Audio
 audioInput =
-  Signal.map2 audioInput' (Signal.dropRepeats receivedModel) frequencies
+  Signal.map audioInput' (Signal.dropRepeats receivedFeed)
 
 
-audioInput' : Model -> List Int -> Audio
-audioInput' model frequencies =
+audioInput' : Feed -> Audio
+audioInput' feed =
   Audio.init
     |> (\freq osc -> { osc | notes = freq })
-        frequencies
+        feed.notes
     |> (\osc audio -> { audio | oscillators = osc :: audio.oscillators })
-        (oscillator1 model)
+        (oscillator1 feed)
     |> (\osc audio -> { audio | oscillators = osc :: audio.oscillators })
-        (oscillator2 model)
+        (oscillator2 feed)
 
 
-oscillator1 : Model -> Oscillator
-oscillator1 model =
+oscillator1 : Feed -> Oscillator
+oscillator1 feed =
   Audio.initOscillator 1
     |> (\detune waveform osc ->
           { osc
@@ -147,11 +190,11 @@ oscillator1 model =
           }
        )
         0
-        (WaveformKnob.toWaveform model.waveformSelector)
+        (WaveformKnob.toWaveform feed.waveformSelector)
 
 
-oscillator2 : Model -> Oscillator
-oscillator2 model =
+oscillator2 : Feed -> Oscillator
+oscillator2 feed =
   Audio.initOscillator 2
     |> (\detune waveform osc ->
           { osc
@@ -159,10 +202,10 @@ oscillator2 model =
             , waveform = waveform
           }
        )
-        model.detuneKnob.angle
-        (WaveformKnob.toWaveform model.waveformSelector)
+        feed.detuneKnob.angle
+        (WaveformKnob.toWaveform feed.waveformSelector)
 
 
-frequencies : Signal (List Int)
-frequencies =
-  Signal.map Keys.keysToFreq Keyboard.keysDown
+notes : Signal (List Keys.Note)
+notes =
+  Signal.map Keys.keysToNote Keyboard.keysDown
