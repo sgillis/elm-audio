@@ -12083,13 +12083,13 @@ Elm.Native.Audio.make = function(elm){
     var Utils = Elm.Native.Utils.make(elm);
 
     var ctx = new (window.AudioContext || window.webkitAudioContext)();
-    var gain = ctx.createGain();
-    gain.connect(ctx.destination);
+    var masterGain = ctx.createGain();
+    masterGain.connect(ctx.destination);
 
     var oscillators =
         {1: {},
          2: {}
-        }
+        };
 
     var oscillator = F4(function(index, waveform, detune, frequency){
         return Task.asyncFunction(function(callback){
@@ -12098,16 +12098,22 @@ Elm.Native.Audio.make = function(elm){
             node.type = waveform;
             node.detune.value = detune / 27;
             node.start();
+            var gain = ctx.createGain();
             node.connect(gain);
-            oscillators[index][frequency] = node;
+            gain.connect(masterGain);
+            oscillators[index][frequency] = oscillators[index][frequency] || {};
+            oscillators[index][frequency]['node'] = node;
+            oscillators[index][frequency]['gain'] = gain;
             callback(Task.succeed(Utils.Tuple0));
-        })
+        });
     });
 
     var destroyOscillator = F2(function(index, frequency){
         return Task.asyncFunction(function(callback){
-            var oscillator = oscillators[index][frequency];
+            var oscillator = oscillators[index][frequency]['node'];
+            var gain = oscillators[index][frequency]['gain'];
             oscillator.stop();
+            gain.disconnect();
             oscillator.disconnect();
             callback(Task.succeed(Utils.Tuple0));
         });
@@ -12116,17 +12122,30 @@ Elm.Native.Audio.make = function(elm){
     var setOscillatorDetune = F2(function(index, detune){
         return Task.asyncFunction(function(callback){
             for(var freq in oscillators[index]){
-                oscillators[index][freq].detune.value = detune / 27;
+                oscillators[index][freq]['node'].detune.value = detune / 27;
             }
             callback(Task.succeed(Utils.Tuple0));
+        });
+    });
+
+    var setOscillatorGain = F2(function(index, gain){
+        for(var freq in oscillators[index]){
+          console.log(oscillators[index][freq]['gain']);
+        }
+        return Task.asyncFunction(function(callback){
+          for(var freq in oscillators[index]){
+            oscillators[index][freq]['gain'].gain.value = gain;
+          }
+          callback(Task.succeed(Utils.Tuple0));
         });
     });
 
     return elm.Native.Audio.values = {
         oscillator: oscillator,
         destroyOscillator: destroyOscillator,
-        setOscillatorDetune: setOscillatorDetune
-    }
+        setOscillatorDetune: setOscillatorDetune,
+        setOscillatorGain: setOscillatorGain
+    };
 }
 
 Elm.Audio = Elm.Audio || {};
@@ -12143,18 +12162,39 @@ Elm.Audio.make = function (_elm) {
    $Native$Audio = Elm.Native.Audio.make(_elm),
    $Result = Elm.Result.make(_elm),
    $Set = Elm.Set.make(_elm),
-   $Signal = Elm.Signal.make(_elm);
+   $Signal = Elm.Signal.make(_elm),
+   $Time = Elm.Time.make(_elm);
    var _op = {};
-   var initOscillator = function (index) {
-      return {index: index,detune: 0,waveform: "sine"};
+   var Tick = function (a) {    return {ctor: "Tick",_0: a};};
+   var FeedUpdate = function (a) {
+      return {ctor: "FeedUpdate",_0: a};
    };
-   var Oscillator = F3(function (a,b,c) {
-      return {index: a,detune: b,waveform: c};
+   var NoOp = {ctor: "NoOp"};
+   var mailbox = $Signal.mailbox(NoOp);
+   var actions = mailbox.signal;
+   var initOscillator = function (index) {
+      return {index: index
+             ,detune: 0
+             ,waveform: "sine"
+             ,attack: 0
+             ,time: $Maybe.Nothing};
+   };
+   var Oscillator = F5(function (a,b,c,d,e) {
+      return {index: a,detune: b,waveform: c,attack: d,time: e};
    });
    var init = {oscillators: _U.list([]),notes: _U.list([])};
    var Audio = F2(function (a,b) {
       return {oscillators: a,notes: b};
    });
+   var setOscillatorGain = F2(function (osc,gain) {
+      return $Effects.task(A2($Native$Audio.setOscillatorGain,
+      osc.index,
+      gain));
+   });
+   var updateADSR = function (input) {
+      var gain = A2(setOscillatorGain,input,0.5);
+      return {ctor: "_Tuple2",_0: input,_1: gain};
+   };
    var setOscillatorDetune = F2(function (osc,detune) {
       return $Effects.task(A2($Native$Audio.setOscillatorDetune,
       osc.index,
@@ -12190,7 +12230,7 @@ Elm.Audio.make = function (_elm) {
              ,_1: $Effects.batch($List.concat(_U.list([created
                                                       ,destroyed])))};
    });
-   var update = F2(function (input,playing) {
+   var update$ = F2(function (input,playing) {
       var _p0 = $List.unzip(A2($List.map,
       A2(updateNotes,input.notes,playing.notes),
       input.oscillators));
@@ -12201,22 +12241,51 @@ Elm.Audio.make = function (_elm) {
       updatedOscillators));
       var updatedOscillators$ = _p1._0;
       var fx$ = _p1._1;
+      var _p2 = $List.unzip(A2($List.map,
+      updateADSR,
+      updatedOscillators$));
+      var updatedOscillators$$ = _p2._0;
+      var fx$$ = _p2._1;
       return {ctor: "_Tuple2"
              ,_0: _U.update(input,
-             {notes: input.notes,oscillators: updatedOscillators$})
-             ,_1: $Effects.batch($List.concat(_U.list([fx,fx$])))};
+             {notes: input.notes,oscillators: updatedOscillators$$})
+             ,_1: $Effects.batch($List.concat(_U.list([fx,fx$,fx$$])))};
+   });
+   var update = F2(function (action,audio) {
+      var _p3 = action;
+      switch (_p3.ctor)
+      {case "NoOp": return {ctor: "_Tuple2"
+                           ,_0: audio
+                           ,_1: $Effects.none};
+         case "FeedUpdate": var _p4 = A2(update$,_p3._0,audio);
+           var audio$ = _p4._0;
+           var fx = _p4._1;
+           return {ctor: "_Tuple2"
+                  ,_0: audio$
+                  ,_1: A2($Effects.map,function (_p5) {    return NoOp;},fx)};
+         default: return {ctor: "_Tuple2"
+                         ,_0: audio
+                         ,_1: $Effects.tick(Tick)};}
    });
    return _elm.Audio.values = {_op: _op
                               ,createOscillator: createOscillator
                               ,destroyOscillator: destroyOscillator
                               ,setOscillatorDetune: setOscillatorDetune
+                              ,setOscillatorGain: setOscillatorGain
                               ,Audio: Audio
                               ,init: init
                               ,Oscillator: Oscillator
                               ,initOscillator: initOscillator
+                              ,NoOp: NoOp
+                              ,FeedUpdate: FeedUpdate
+                              ,Tick: Tick
+                              ,mailbox: mailbox
+                              ,actions: actions
                               ,update: update
+                              ,update$: update$
                               ,updateNotes: updateNotes
-                              ,updateDetune: updateDetune};
+                              ,updateDetune: updateDetune
+                              ,updateADSR: updateADSR};
 };
 Elm.Keys = Elm.Keys || {};
 Elm.Keys.make = function (_elm) {
@@ -12759,15 +12828,8 @@ Elm.Main.make = function (_elm) {
       v);
    });
    var audioInput = A2($Signal.map,
-   audioInput$,
-   $Signal.dropRepeats(receivedFeed));
-   var init = {ctor: "_Tuple2"
-              ,_0: {audio: $Audio.init
-                   ,notes: _U.list([])
-                   ,detuneKnob: $MinMaxKnob.init
-                   ,waveformSelector: $WaveformKnob.init
-                   ,keyboard: $SynthKeyboard.init}
-              ,_1: $Effects.none};
+   $Audio.FeedUpdate,
+   A2($Signal.map,audioInput$,$Signal.dropRepeats(receivedFeed)));
    var KeyboardAction = function (a) {
       return {ctor: "KeyboardAction",_0: a};
    };
@@ -12797,7 +12859,13 @@ Elm.Main.make = function (_elm) {
    var AudioUpdate = function (a) {
       return {ctor: "AudioUpdate",_0: a};
    };
-   var NoOp = {ctor: "NoOp"};
+   var init = {ctor: "_Tuple2"
+              ,_0: {audio: $Audio.init
+                   ,notes: _U.list([])
+                   ,detuneKnob: $MinMaxKnob.init
+                   ,waveformSelector: $WaveformKnob.init
+                   ,keyboard: $SynthKeyboard.init}
+              ,_1: A2($Effects.map,AudioUpdate,$Effects.tick($Audio.Tick))};
    var update = F2(function (action,model) {
       var _p0 = action;
       switch (_p0.ctor)
@@ -12811,7 +12879,7 @@ Elm.Main.make = function (_elm) {
            var fx = _p1._1;
            return {ctor: "_Tuple2"
                   ,_0: _U.update(model,{audio: audio$})
-                  ,_1: A2($Effects.map,function (_p2) {    return NoOp;},fx)};
+                  ,_1: A2($Effects.map,AudioUpdate,fx)};
          case "SetNotes": return {ctor: "_Tuple2"
                                  ,_0: _U.update(model,{notes: _p0._0})
                                  ,_1: $Effects.none};
@@ -12846,6 +12914,7 @@ Elm.Main.make = function (_elm) {
    var model = app.model;
    var tasks = Elm.Native.Task.make(_elm).performSignal("tasks",
    app.tasks);
+   var NoOp = {ctor: "NoOp"};
    var modelToFeed = function (model) {
       return {detuneKnob: model.detuneKnob
              ,waveformSelector: model.waveformSelector

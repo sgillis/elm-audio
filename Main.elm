@@ -39,7 +39,7 @@ modelToFeed model =
 
 type Action
   = NoOp
-  | AudioUpdate Audio
+  | AudioUpdate Audio.Action
   | SetNotes (List Keys.Note)
   | DetuneKnobAction MinMaxKnob.Action
   | WaveformSelectorAction WaveformKnob.Action
@@ -54,7 +54,7 @@ init =
     , waveformSelector = WaveformKnob.init
     , keyboard = SynthKeyboard.init
     }
-  , Effects.none
+  , Effects.map AudioUpdate <| Effects.tick Audio.Tick
   )
 
 
@@ -64,13 +64,13 @@ update action model =
     NoOp ->
       ( model, Effects.none )
 
-    AudioUpdate audio ->
+    AudioUpdate action' ->
       let
         ( audio', fx ) =
-          Audio.update audio model.audio
+          Audio.update action' model.audio
       in
         ( { model | audio = audio' }
-        , Effects.map (\_ -> NoOp) fx
+        , Effects.map AudioUpdate fx
         )
 
     SetNotes notes ->
@@ -164,9 +164,10 @@ port sendFeed =
 -- AUDIO SIGNALS
 
 
-audioInput : Signal Audio
+audioInput : Signal Audio.Action
 audioInput =
   Signal.map audioInput' (Signal.dropRepeats receivedFeed)
+    |> Signal.map Audio.FeedUpdate
 
 
 audioInput' : Feed -> Audio

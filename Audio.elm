@@ -3,6 +3,7 @@ module Audio (..) where
 import Effects exposing (Effects)
 import Native.Audio
 import Set
+import Time exposing (Time)
 
 
 createOscillator : Oscillator -> Float -> Effects ()
@@ -23,6 +24,12 @@ setOscillatorDetune osc detune =
     |> Effects.task
 
 
+setOscillatorGain : Oscillator -> Float -> Effects ()
+setOscillatorGain osc gain =
+  Native.Audio.setOscillatorGain osc.index gain
+    |> Effects.task
+
+
 type alias Audio =
   { oscillators : List Oscillator
   , notes : List Float
@@ -40,6 +47,8 @@ type alias Oscillator =
   { index : Int
   , detune : Int
   , waveform : String
+  , attack : Int
+  , time : ElapsedTime
   }
 
 
@@ -48,11 +57,58 @@ initOscillator index =
   { index = index
   , detune = 0
   , waveform = "sine"
+  , attack = 0
+  , time = Nothing
   }
 
 
-update : Audio -> Audio -> ( Audio, Effects () )
-update input playing =
+type alias ElapsedTime =
+  Maybe { elapsedTime : Time, prevTime : Time }
+
+
+
+-- MAILBOX
+
+
+type Action
+  = NoOp
+  | FeedUpdate Audio
+  | Tick Time
+
+
+mailbox : Signal.Mailbox Action
+mailbox =
+  Signal.mailbox NoOp
+
+
+actions : Signal Action
+actions =
+  mailbox.signal
+
+
+
+-- UPDATE
+
+
+update : Action -> Audio -> ( Audio, Effects Action )
+update action audio =
+  case action of
+    NoOp ->
+      ( audio, Effects.none )
+
+    FeedUpdate feed ->
+      let
+        ( audio', fx ) =
+          update' feed audio
+      in
+        ( audio', Effects.map (\_ -> NoOp) fx )
+
+    Tick time ->
+      ( audio, Effects.tick Tick )
+
+
+update' : Audio -> Audio -> ( Audio, Effects () )
+update' input playing =
   let
     ( updatedOscillators, fx ) =
       List.map (updateNotes input.notes playing.notes) input.oscillators
@@ -61,12 +117,17 @@ update input playing =
     ( updatedOscillators', fx' ) =
       List.map updateDetune updatedOscillators
         |> List.unzip
+
+    ( updatedOscillators'', fx'' ) =
+      List.map updateADSR updatedOscillators'
+        |> List.unzip
   in
     ( { input
         | notes = input.notes
-        , oscillators = updatedOscillators'
+        , oscillators = updatedOscillators''
       }
-    , Effects.batch <| List.concat [ fx, fx' ]
+    , Effects.batch
+        <| List.concat [ fx, fx', fx'' ]
     )
 
 
@@ -101,3 +162,12 @@ updateDetune input =
       setOscillatorDetune input input.detune
   in
     ( input, detune )
+
+
+updateADSR : Oscillator -> ( Oscillator, Effects () )
+updateADSR input =
+  let
+    gain =
+      setOscillatorGain input 0.5
+  in
+    ( input, gain )
